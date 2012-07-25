@@ -9,8 +9,8 @@ my %config = (
 	'nodes' => {
 		redis_0 => { address => 'localhost:63790' },
 		redis_1 => { address => 'localhost:63791' },
-		redis_2 => { address => 'localhost:63792' },
-		redis_3 => { address => 'localhost:63793' },
+#redis_2 => { address => 'localhost:63792' },
+#redis_3 => { address => 'localhost:63793' },
 	},
 );
 
