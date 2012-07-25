@@ -12,7 +12,7 @@ use Set::ConsistentHash;   # for hash ring logic
 use Digest::MD5 qw(md5);   # for hashing keys
 use Scalar::Util qw(weaken);
 
-my $VERSION = "0.01";
+our $VERSION = "0.01";
 
 # keep a global object cache that will contain weak references to
 # objects keyed on their tag.  this allows for sharing of objects
@@ -44,8 +44,6 @@ my %timeout_override = (
 	'subscribe' => 0, # means no timeout
 );
 
-our $VERSION = '0.3';
-
 sub new {
 	my $class = shift;
 	my $self = { @_ };
@@ -71,10 +69,8 @@ sub new {
 	# condvar for finishing up stuff (used in poll())
 	$self->{cv} = undef;
 
-	# setup dbm for server_status tracking
-	my $dbm = { };
-
-	$self->{server_status} = $dbm;
+	# setup server_status tracking
+	$self->{server_status} = { };
 
 	# we must have configuration
 	if (not $self->{config}) {
@@ -343,10 +339,9 @@ AnyEvent::Redis::Federated - Full-featured Async Perl Redis client
 
 =head1 SYNOPSIS
 
-  use cl::setup;
   use AnyEvent::Redis::Federated;
 
-  my $r = cl::Redis->new(%opts);
+  my $r = AnyEvent::Redis::Federated->new(%opts);
 
   # batch up requests and explicity wait for completion
   $redis->set("foo$_", "bar$_") for 1..20;
@@ -552,15 +547,15 @@ argument and it'll do the right thing:
 
 You can also use call chaining:
 
-  $rediis->set("foo", 1)->set("bar", 2)->get("foo", sub {
+  $redis->set("foo", 1)->set("bar", 2)->get("foo", sub {
     my $val = shift;
     print "foo: $val\n";
   });
 
 =head2 CONFIGURATION
 
-AnyEvent::Redis::Federated requires a configuration hash be passed 
-to it at instantiation time. The constructor will die() unless a 
+AnyEvent::Redis::Federated requires a configuration hash be passed
+to it at instantiation time. The constructor will die() unless a
 unless a 'config' option is passed to it. The configuration structure
 looks like:
 
@@ -634,6 +629,10 @@ Jeremy Zawodny's blog describing craigslist's use of redis sharding:
 
   http://blog.zawodny.com/2011/02/26/redis-sharding-at-craigslist/
 
+That posting described an implementation which was based on the
+regular (non-async) Redis client from CPAN.  This code is a port of
+that to AnyEvent.
+
 =head2 BUGS
 
 This code is lightly tested and considered to be of beta quality.
@@ -641,6 +640,8 @@ This code is lightly tested and considered to be of beta quality.
 =head1 AUTHOR
 
 Jeremy Zawodny, E<lt>jzawodn@craigslist.orgE<gt>
+
+Joshua Thayer, E<lt>joshua@craigslist.orgE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
