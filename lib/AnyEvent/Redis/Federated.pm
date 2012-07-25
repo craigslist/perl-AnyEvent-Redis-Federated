@@ -12,7 +12,7 @@ use Set::ConsistentHash;   # for hash ring logic
 use Digest::MD5 qw(md5);   # for hashing keys
 use Scalar::Util qw(weaken);
 
-our $VERSION = "0.01";
+our $VERSION = "0.02";
 
 # keep a global object cache that will contain weak references to
 # objects keyed on their tag.  this allows for sharing of objects
