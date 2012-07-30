@@ -1,18 +1,58 @@
 #!/usr/bin/perl -w
-
+$|++;
 use strict;
 use lib ('../lib','./lib');
-use Test::More tests => 4;
-use AnyEvent::Redis::Federated;
+use Test::TCP;
+use Test::More qw(no_plan);
+use File::Temp qw(tempfile tempdir);
+use feature qw(say);
+
+my $debug          = $ENV{DEBUG};
+my $redis_bin      = $ENV{REDIS_BIN}       || 'redis-server';
+my $instance_count = $ENV{REDIS_INSTANCES} || 2;
+my @tmpfiles;
+my %kid2port;
+
+use_ok('AnyEvent::Redis::Federated');
+
+# see if we can find redis-server
+my $redis_server = `which $redis_bin 2>/dev/null`;
+chomp $redis_server;
+warn "redis_server: $redis_server\n" if $debug;
+
+if (not (-e $redis_server and -x $redis_server)) {
+	say "no redis-server binary found in path. skipping live tests.";
+	exit;
+}
 
 my %config = (
-	'nodes' => {
-		redis_0 => { address => 'localhost:63790' },
-		redis_1 => { address => 'localhost:63791' },
-#redis_2 => { address => 'localhost:63792' },
-#redis_3 => { address => 'localhost:63793' },
-	},
+	'nodes' => { },
 );
+
+# start some redis-server instances
+for my $num (1..$instance_count) {
+	my $port = empty_port();
+	
+	my ($fh, $filename) = tempfile( DIR => '/tmp' );
+	my (undef, $logfile) = tempfile( DIR => '/tmp' );
+	push @tmpfiles, $filename;
+	say $fh "port $port";
+	say $fh "logfile $logfile";
+
+	# add to config
+	$config{'nodes'}->{'redis_'.$num} = { address => "localhost:$port" };
+
+	if (my $pid = fork()) {
+		warn "forked $pid to listen on $port\n" if $debug;
+		$kid2port{$pid} = $port;
+	}
+	# child
+	else {
+		exec "$redis_bin $filename";
+	}
+}
+
+sleep 2;
 
 # new client
 my $redis = new AnyEvent::Redis::Federated(
@@ -20,7 +60,7 @@ my $redis = new AnyEvent::Redis::Federated(
 	tag         => 'default',
 	clean_state => 1,
 );
-ok($redis);
+ok($redis, "new()");
 
 # set/get test
 $redis->set("ducati", 7)->poll;
@@ -29,13 +69,13 @@ $redis->get("ducati", sub {
 	$val = shift;
 	#print "ducati: $val\n";
 })->poll;
-is($val, 7, "set/get [ducati 7]");
+is($val, 7, "simple set/get [ducati 7]");
 
 # chaining
 $redis->set("ducati", 8)->get("ducati", sub {
 	$val = shift;
 })->poll;
-is($val, 8, "set/get chained [ducati 8]");
+is($val, 8, "simple set/get chained [ducati 8]");
 
 # loops
 #
@@ -67,5 +107,11 @@ ok($ok, "loops, $count calls in $elapsed secs ($persec/sec)");
 #
 #  - test pubsub
 #  - test blpop
+
+END {
+	for my $kid (keys %kid2port) {
+		kill 15, $kid;
+	}
+};
 
 exit;
