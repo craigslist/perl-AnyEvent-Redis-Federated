@@ -623,7 +623,7 @@ The normal AnyEvent::Redis perl client C<perldoc AnyEvent::Redis>.
 
 The Redis API documentation:
 
-  http://code.google.com/p/redis/wiki/CommandReference
+  http://redis.io/commands
 
 Jeremy Zawodny's blog describing craigslist's use of redis sharding:
 
