@@ -1,5 +1,8 @@
 Revision history for Perl extension AnyEvent::Redis::Federated.
 
+0.03  Mon Jul 30 10:06:41 2012
+	- fix tests to start redis-server if found
+
 0.02  Wed Jul 25 16:06:41 2012
 	- bump version so I can re-upload to CPAN
 
