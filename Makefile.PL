@@ -5,7 +5,11 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     NAME              => 'AnyEvent::Redis::Federated',
     VERSION_FROM      => 'lib/AnyEvent/Redis/Federated.pm', # finds $VERSION
-    PREREQ_PM         => {},
+    PREREQ_PM         => {
+        'Test::TCP'       => 0,
+        'Test::More'      => 0,
+        'AnyEvent::Redis' => 0,
+    },
     ($] >= 5.005 ?     ## Add these new keywords supported since 5.005
       (ABSTRACT_FROM  => 'lib/AnyEvent/Redis/Federated.pm', # retrieve abstract from module
        AUTHOR         => 'jzawodn <jzawodn@craigslist.org>') : ()),
