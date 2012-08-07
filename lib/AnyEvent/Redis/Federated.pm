@@ -63,14 +63,15 @@ sub new {
 	$self->{retry_slop_secs}     ||= RETRY_SLOP_SECS;
 	$self->{max_retry_interval}  ||= MAX_RETRY_INTERVAL;
 
-	# count oustanding requests
-	$self->{pending_requests} = 0;
-
 	# condvar for finishing up stuff (used in poll())
 	$self->{cv} = undef;
 
 	# setup server_status tracking
 	$self->{server_status} = { };
+
+	# request state
+	$self->{request_serial} = 0;
+	$self->{request_state} = { };
 
 	# we must have configuration
 	if (not $self->{config}) {
@@ -296,15 +297,25 @@ sub AUTOLOAD {
 	if (not defined $self->{cv}) {
 		$self->{cv} = AnyEvent->condvar;
 	}
-	$self->{pending_requests}++;
+
 	$self->{cv}->begin;
+	$self->{request_serial}++;
+	my $rid = $self->{request_serial};
+	$self->{request_state}->{$rid} = 1; # open request; 0 is cancelled
+	print "scheduling request $rid: $_[0]\n" if $self->{debug};
 
 	$r->$call(@_, sub {
+		if (not $self->{request_state}->{$rid}) {
+			print "call found request $rid cancelled\n" if $self->{debug};
+			delete $self->{request_state}->{$rid};
+			$self->markServerDown($server);
+			return;
+		}
 		$self->{cv}->end;
-		$self->{pending_requests}--;
 		$self->markServerUp($server);
 		$self->{last_used}->{$server} = time;
-		print "$self->{pending_requests} pending requests\n" if $self->{debug};
+		print "callback completed for request $rid\n" if $self->{debug};
+		delete $self->{request_state}->{$rid};
 		$cb->(shift);
 	});
 	return $self;
@@ -312,25 +323,34 @@ sub AUTOLOAD {
 
 sub poll {
 	my ($self) = @_;
-	return if not $self->{pending_requests};
+	#return if $self->{pending_requests} < 1;
 	return if not defined $self->{cv};
-	print "$self->{pending_requests} pending requests\n" if $self->{debug};
+	my $rid = $self->{request_serial};
 
 	my $timeout = $self->{command_timeout};
-	my $timer = AnyEvent->timer(
-		after => $timeout,
-		cb => sub {
-			warn "AnyEvent::Redis::Federated::poll timeout!\n";
-			while ($self->{pending_requests}) {
-				$self->{cv}->end;
-				$self->{pending_requests}--;
+
+	if ($timeout) {
+		my $w;
+		$w = AnyEvent->signal (signal => "ALRM", cb => sub {
+			warn "AnyEvent::Redis::Federated::poll alarm timeout! ($rid)\n";
+
+			# check the state of requests, marking remaining as cancelled
+			while (my ($rid, $state) = each %{$self->{request_state}}) {
+				if ($self->{request_state}->{$rid}) {
+					print "found pending request to cancel: $rid\n" if $self->{debug};
+					$self->{request_state}->{$rid} = 0;
+					$self->{cv}->end;
+					undef $w;
+				}
 			}
-		}
-	);
-	print "scheduling timer in poll() for $timeout\n" if $self->{debug};
+		});
+		print "scheduling alarm timer in poll() for $timeout\n" if $self->{debug};
+		alarm($timeout);
+	}
+
 	$self->{cv}->recv;
-	undef $timer;
 	$self->{cv} = undef;
+	alarm(0);
 }
 
 =head1 NAME

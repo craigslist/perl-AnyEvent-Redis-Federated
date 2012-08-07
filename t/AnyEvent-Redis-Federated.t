@@ -103,6 +103,18 @@ my $elapsed = time - $t0;
 my $persec = $count / $elapsed;
 ok($ok, "loops, $count calls in $elapsed secs ($persec/sec)");
 
+$ok = 0;
+
+$redis->set("sleeptest", 1);
+$redis->get("sleeptest", sub {
+	my $val = shift;
+	$ok = $val;
+});
+sleep 3;
+$redis->poll();
+sleep 3;
+ok($ok, "sleep test");
+
 # TODO:
 #
 #  - test pubsub
