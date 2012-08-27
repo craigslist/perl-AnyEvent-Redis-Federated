@@ -304,6 +304,10 @@ sub AUTOLOAD {
 	$self->{request_state}->{$rid} = 1; # open request; 0 is cancelled
 	print "scheduling request $rid: $_[0]\n" if $self->{debug};
 
+	if ($call eq 'multi' or $call eq 'exec') {
+		@_ = (); # these don't really take args
+	}
+
 	$r->$call(@_, sub {
 		if (not $self->{request_state}->{$rid}) {
 			print "call found request $rid cancelled\n" if $self->{debug};
