@@ -13,7 +13,7 @@ use Digest::MD5 qw(md5);   # for hashing keys
 use Scalar::Util qw(weaken);
 use List::Util qw(shuffle);
 use Data::Dumper;
-use UNIVERSAL qw(isa);
+#use UNIVERSAL qw(isa);
 
 our $VERSION = "0.06";
 
