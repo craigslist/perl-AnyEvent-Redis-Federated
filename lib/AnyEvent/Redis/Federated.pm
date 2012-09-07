@@ -718,6 +718,8 @@ Jeremy Zawodny, E<lt>jzawodn@craigslist.orgE<gt>
 
 Joshua Thayer, E<lt>joshua@craigslist.orgE<gt>
 
+Tyle Phelps, E<lt>tyler@craigslist.orgE<gt>
+
 =head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009-2011 by craigslist.
