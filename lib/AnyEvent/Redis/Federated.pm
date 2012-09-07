@@ -381,11 +381,10 @@ sub poll {
 	#return if $self->{pending_requests} < 1;
 	return if not defined $self->{cv};
 	my $rid = $self->{request_serial};
-
 	my $timeout = $self->{command_timeout};
 
+	my $w;
 	if ($timeout) {
-		my $w;
 		$w = AnyEvent->signal (signal => "ALRM", cb => sub {
 			warn "AnyEvent::Redis::Federated::poll alarm timeout! ($rid)\n";
 
@@ -406,6 +405,7 @@ sub poll {
 	$self->{cv}->recv;
 	$self->{cv} = undef;
 	alarm(0);
+	undef $w;
 }
 
 =head1 NAME
