@@ -91,7 +91,7 @@ sub new {
 	foreach my $node (keys %{$self->{config}->{nodes}}) {
 		if ($self->{config}->{nodes}->{$node}->{addresses}) {
 			# shuffle the existing addresses array
-			 @{$self->{config}->{nodes}->{$node}->{addresses}} = shuffle(@{$self->{config}->{nodes}->{$node}->{addresses}});
+			@{$self->{config}->{nodes}->{$node}->{addresses}} = shuffle(@{$self->{config}->{nodes}->{$node}->{addresses}});
 			# and set the first to be our targeted server
 			$self->{config}->{nodes}->{$node}->{address} = ${$self->{config}->{nodes}->{$node}->{addresses}}[0];
 		}
@@ -175,7 +175,7 @@ sub nextServer {
 	return $server unless $self->{config}->{nodes}->{$node}->{addresses};
 	$self->{config}->{nodes}->{$node}->{address} = shift(@{$self->{config}->{nodes}->{$node}->{addresses}});
 	push @{$self->{config}->{nodes}->{$node}->{addresses}}, $self->{config}->{nodes}->{$node}->{address};
-	warn "redis server changed from $server to $self->{config}->{nodes}->{$node}->{address} selected\n";
+	warn "redis server for $node changed from $server to $self->{config}->{nodes}->{$node}->{address} selected\n";
 	return $self->{config}->{nodes}->{$node}->{address};
 }
 
@@ -276,7 +276,7 @@ sub AUTOLOAD {
 
 	my $node = $self->keyToNode($hk);
 	my $server = $self->nodeToHost($node);
-	print "server [$server] for key [$key] hashkey [$hk]\n" if $self->{debug};
+	print "server [$server] of node [$node] for key [$key] hashkey [$hk]\n" if $self->{debug};
 
 	if ($self->{config}->{nodes}->{$node}->{addresses} && $self->isServerDown($server)) {
 		print "server [$server] seems down\n" if $self->{debug};
@@ -314,9 +314,10 @@ sub AUTOLOAD {
 					$self->{cv}->end;
 				}
 			);
-	
+
 			$self->{conn}->{$server} = $r;
-		} else {
+		}
+		else {
 			# single address style:  1 node => 1 address
 			my ($host, $port) = split /:/, $server;
 			print "new connection to $server\n" if $self->{debug};
@@ -330,7 +331,7 @@ sub AUTOLOAD {
 					$self->{cv}->end;
 				}
 			);
-	
+
 			$self->{conn}->{$server} = $r;
 		}
 	}
@@ -362,6 +363,7 @@ sub AUTOLOAD {
 			print "call found request $rid cancelled\n" if $self->{debug};
 			delete $self->{request_state}->{$rid};
 			$self->markServerDown($server);
+			$cb->(undef);
 			return;
 		}
 		$self->{cv}->end;
