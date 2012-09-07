@@ -12,7 +12,6 @@ use Set::ConsistentHash;   # for hash ring logic
 use Digest::MD5 qw(md5);   # for hashing keys
 use Scalar::Util qw(weaken);
 use List::Util qw(shuffle);
-use Data::Dumper;
 
 our $VERSION = "0.06";
 
