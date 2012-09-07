@@ -32,7 +32,7 @@ my %config = (
 # start some redis-server instances
 for my $num (1..$instance_count) {
 	my $port = empty_port();
-	
+
 	my ($fh, $filename) = tempfile( DIR => '/tmp' );
 	my (undef, $logfile) = tempfile( DIR => '/tmp' );
 	push @tmpfiles, $filename;
