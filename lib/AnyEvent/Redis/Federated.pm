@@ -11,6 +11,9 @@ use AnyEvent;
 use Set::ConsistentHash;   # for hash ring logic
 use Digest::MD5 qw(md5);   # for hashing keys
 use Scalar::Util qw(weaken);
+use List::Util qw(shuffle);
+use Data::Dumper;
+use UNIVERSAL qw(isa);
 
 our $VERSION = "0.06";
 
@@ -86,6 +89,16 @@ sub new {
 		print "\n";
 	}
 
+	# setup the addresses array
+	foreach my $node (keys %{$self->{config}->{nodes}}) {
+		if ($self->{config}->{nodes}->{$node}->{addresses}) {
+			# shuffle the existing addresses array
+			 @{$self->{config}->{nodes}->{$node}->{addresses}} = shuffle(@{$self->{config}->{nodes}->{$node}->{addresses}});
+			# and set the first to be our targeted server
+			$self->{config}->{nodes}->{$node}->{address} = ${$self->{config}->{nodes}->{$node}->{addresses}}[0];
+		}
+	}
+
 	# setup the consistent hash
 	my $set = Set::ConsistentHash->new;
 	my @targets = map { $_, DEFAULT_WEIGHT } @{$self->{nodes}};
@@ -141,10 +154,10 @@ sub nodeToHost {
 	return $self->{config}->{nodes}->{$node}->{address};
 }
 
-sub keyToServer {
+sub keyToNode {
 	my ($self, $key) = @_;
 	my $node = $self->{buckets}->[_hash($key) % 1024];
-	return $self->nodeToHost($node);
+	return $node;
 }
 
 sub isServerDown {
@@ -157,6 +170,15 @@ sub isServerUp {
 	my ($self, $server) = @_;
 	return 0 if $self->{server_status}{"$server:down"};
 	return 1;
+}
+
+sub nextServer {
+	my ($self, $server, $node) = @_;
+	return $server unless $self->{config}->{nodes}->{$node}->{addresses};
+	$self->{config}->{nodes}->{$node}->{address} = shift(@{$self->{config}->{nodes}->{$node}->{addresses}});
+	push @{$self->{config}->{nodes}->{$node}->{addresses}}, $self->{config}->{nodes}->{$node}->{address};
+	warn "redis server changed from $server to $self->{config}->{nodes}->{$node}->{address} selected\n";
+	return $self->{config}->{nodes}->{$node}->{address};
 }
 
 sub markServerUp {
@@ -254,12 +276,18 @@ sub AUTOLOAD {
 		$_[0] = $key;
 	}
 
-	my $server = $self->keyToServer($hk);
-	print "server [$server] for key [$hk]\n" if $self->{debug};
+	my $node = $self->keyToNode($hk);
+	my $server = $self->nodeToHost($node);
+	print "server [$server] for key [$key] hashkey [$hk]\n" if $self->{debug};
 
-	my $r;
+	if ($self->{config}->{nodes}->{$node}->{addresses} && $self->isServerDown($server)) {
+		print "server [$server] seems down\n" if $self->{debug};
+		$server = $self->nextServer($server,$node);
+		print "trying next server in line [$server] for node [$node]\n" if $self->{debug};
+	}
 
 	# have a non-idle connection already?
+	my $r;
 	if ($self->{conn}->{$server}) {
 		if ($self->{idle_timeout}) {
 			if ($self->{last_used}->{$server} > time - $self->{idle_timeout}) {
@@ -270,23 +298,46 @@ sub AUTOLOAD {
 			$r = $self->{conn}->{$server};
 		}
 	}
-	if (not defined $r) {
-		my ($host, $port) = split /:/, $server;
-		print "new to $server\n" if $self->{debug};
-		$r = AnyEvent::Redis->new(
-			host => $host,
-			port => $port,
-			on_error => sub {
-				warn @_;
-				#$self->{conn}->{$server} = undef;
-				$self->markServerDown($server);
-				$self->{cv}->end;
-			}
-		);
 
-		$self->{conn}->{$server} = $r;
+	# otherwise create a new connection
+	if (not defined $r) {
+		if ($self->{config}->{nodes}->{$node}->{addresses}) {
+			# multiple address style:  1 node => 2+ addresses
+			my ($host, $port) = split /:/, $server;
+			print "attempting new connection to $server\n" if $self->{debug};
+			$r = AnyEvent::Redis->new(
+				host => $host,
+				port => $port,
+				on_error => sub {
+					warn @_;
+					#$self->{conn}->{$server} = undef;
+					$self->markServerDown($server);
+					$self->nextServer($server,$node);
+					$self->{cv}->end;
+				}
+			);
+	
+			$self->{conn}->{$server} = $r;
+		} else {
+			# single address style:  1 node => 1 address
+			my ($host, $port) = split /:/, $server;
+			print "new connection to $server\n" if $self->{debug};
+			$r = AnyEvent::Redis->new(
+				host => $host,
+				port => $port,
+				on_error => sub {
+					warn @_;
+					#$self->{conn}->{$server} = undef;
+					$self->markServerDown($server);
+					$self->{cv}->end;
+				}
+			);
+	
+			$self->{conn}->{$server} = $r;
+		}
 	}
 
+	# if server is down, attempt to reconnect, otherwise back off
 	if ($self->isServerDown($server) and not $self->serverNeedsRetry($server)) {
 		print "server $server down and not retrying...\n" if $self->{debug};
 		$cb->(undef);
