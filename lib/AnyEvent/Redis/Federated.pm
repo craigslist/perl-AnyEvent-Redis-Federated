@@ -299,41 +299,20 @@ sub AUTOLOAD {
 
 	# otherwise create a new connection
 	if (not defined $r) {
-		if ($self->{config}->{nodes}->{$node}->{addresses}) {
-			# multiple address style:  1 node => 2+ addresses
-			my ($host, $port) = split /:/, $server;
-			print "attempting new connection to $server\n" if $self->{debug};
-			$r = AnyEvent::Redis->new(
-				host => $host,
-				port => $port,
-				on_error => sub {
-					warn @_;
-					#$self->{conn}->{$server} = undef;
-					$self->markServerDown($server);
-					$self->nextServer($server,$node);
-					$self->{cv}->end;
-				}
-			);
+		my ($host, $port) = split /:/, $server;
+		print "attempting new connection to $server\n" if $self->{debug};
+		$r = AnyEvent::Redis->new(
+			host => $host,
+			port => $port,
+			on_error => sub {
+				warn @_;
+				#$self->{conn}->{$server} = undef;
+				$self->markServerDown($server);
+				$self->{cv}->end;
+			}
+		);
 
-			$self->{conn}->{$server} = $r;
-		}
-		else {
-			# single address style:  1 node => 1 address
-			my ($host, $port) = split /:/, $server;
-			print "attempting new connection to $server\n" if $self->{debug};
-			$r = AnyEvent::Redis->new(
-				host => $host,
-				port => $port,
-				on_error => sub {
-					warn @_;
-					#$self->{conn}->{$server} = undef;
-					$self->markServerDown($server);
-					$self->{cv}->end;
-				}
-			);
-
-			$self->{conn}->{$server} = $r;
-		}
+		$self->{conn}->{$server} = $r;
 	}
 
 	# if server is down, attempt to reconnect, otherwise back off
