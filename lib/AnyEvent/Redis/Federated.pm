@@ -13,7 +13,7 @@ use Digest::MD5 qw(md5);   # for hashing keys
 use Scalar::Util qw(weaken);
 use List::Util qw(shuffle);
 
-our $VERSION = "0.06";
+our $VERSION = "0.07";
 
 # keep a global object cache that will contain weak references to
 # objects keyed on their tag.  this allows for sharing of objects
