@@ -320,7 +320,7 @@ sub AUTOLOAD {
 		else {
 			# single address style:  1 node => 1 address
 			my ($host, $port) = split /:/, $server;
-			print "new connection to $server\n" if $self->{debug};
+			print "attempting new connection to $server\n" if $self->{debug};
 			$r = AnyEvent::Redis->new(
 				host => $host,
 				port => $port,
