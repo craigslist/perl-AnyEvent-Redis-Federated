@@ -192,7 +192,7 @@ ok($new_servers, "allServers('foo')");
 cmp_ok(scalar(@$new_servers), '==', $instance_count-1, "server count matches instance_count-1 again");
 print Data::Dumper->Dump([$new_servers]) if $debug;
 
-for (1..50) {
+for (1..20) {
 	$redis->set('a', 'b')->poll();
 	select undef, undef, undef, 0.20; # 200ms pause
 }
