@@ -172,7 +172,7 @@ sub keyToNode {
 sub isServerDown {
 	my ($self, $server) = @_;
 	return 1 if $self->{server_status}{"$server:down"};
-	return 0;
+ 	return 0;
 }
 
 sub isServerUp {
@@ -193,8 +193,7 @@ sub nextServer {
 ## TODO: return only on-line/up servers?
 
 sub allServers {
-	my ($self, $server, $node) = @_;
-	return [$server] unless $self->{config}->{nodes}->{$node}->{addresses};
+	my ($self, $node) = @_;
 	return $self->{config}->{nodes}->{$node}->{addresses};
 }
 
@@ -248,13 +247,15 @@ sub markServerDown {
 		}
 	}
 
+	## TODO: schedule retry ping call in here...
+
 	return 1;
 }
 
 sub serverNeedsRetry {
 	my ($self, $server) = @_;
 
-	# if we haven't hit the max, yes
+	# if we haven't hit the max, yet
 	if ($self->{server_status}{"$server:retries"} < $self->{max_host_retries}) {
 		print "fast retry $server\n" if $self->{debug};
 		return 1;
@@ -294,16 +295,35 @@ sub AUTOLOAD {
 	}
 
 	my $node = $self->keyToNode($hk);
-	my $server = $self->nodeToHost($node);
-	print "server [$server] of node [$node] for key [$key] hashkey [$hk]\n" if $self->{debug};
+	my $query_all = $self->{query_all};
 
-	if ($self->{config}->{nodes}->{$node}->{addresses} && $self->isServerDown($server)) {
-		print "server [$server] seems down\n" if $self->{debug};
-		$server = $self->nextServer($server, $node);
-		print "trying next server in line [$server] for node [$node]\n" if $self->{debug};
+	if ($call =~ m/_all$/) {
+		$query_all = 1;
 	}
 
-	return $self->scheduleCall($server, $call, [@_], $cb);
+	## The normal single-server case...
+	if (not $query_all) {
+		my $server = $self->nodeToHost($node);
+		print "server [$server] of node [$node] for key [$key] hashkey [$hk]\n" if $self->{debug};
+
+		if ($self->{config}->{nodes}->{$node}->{addresses} && $self->isServerDown($server)) {
+			print "server [$server] seems down\n" if $self->{debug};
+			$server = $self->nextServer($server, $node);
+			print "trying next server in line [$server] for node [$node]\n" if $self->{debug};
+		}
+
+		return $self->scheduleCall($server, $call, [@_], $cb);
+	}
+
+	## Need to fire this one at all up servers in the node group and
+	## return all the results (if possible).
+	else {
+		my $servers = $self->allServers($node);
+		for my $server (@$servers) {
+			$self->scheduleCall($server, $call, [@_], $cb);
+		}
+		return $self;
+	}
 }
 
 sub poll {
