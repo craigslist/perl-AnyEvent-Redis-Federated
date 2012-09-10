@@ -346,7 +346,7 @@ sub AUTOLOAD {
 			else {
 				print "server $server down.  abandoning call.\n" if $self->{debug};
 				$cb->(undef);
-				return ();
+				return $self;
 			}
 		}
 
