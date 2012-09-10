@@ -249,7 +249,7 @@ sub markServerDown {
 			warn "timer callback triggered for $server";
 
 			my ($host, $port) = split /:/, $server;
-			print "attempting new connection to $server\n" if $self->{debug};
+			print "attempting reconnection to $server\n" if $self->{debug};
 			$r = AnyEvent::Redis->new(
 				host => $host,
 				port => $port,
