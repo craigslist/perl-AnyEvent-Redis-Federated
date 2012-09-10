@@ -8,7 +8,7 @@ WriteMakefile(
     PREREQ_PM         => {
         'Test::TCP'           => 0,
         'Test::More'          => 0,
-        'Test::RedisServer'   => '0.09',
+#        'Test::RedisServer'   => '0.09',
         'AnyEvent::Redis'     => 0,
 		'Set::ConsistentHash' => 0,
     },
