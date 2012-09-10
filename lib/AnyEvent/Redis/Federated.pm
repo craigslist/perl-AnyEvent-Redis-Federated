@@ -319,7 +319,6 @@ sub AUTOLOAD {
 	if ($self->isServerDown($server) and not $self->serverNeedsRetry($server)) {
 		print "server $server down and not retrying...\n" if $self->{debug};
 		$cb->(undef);
-		#$self->{cv}->end;
 		return ();
 	}
 
