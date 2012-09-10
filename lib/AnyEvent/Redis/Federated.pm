@@ -194,7 +194,9 @@ sub nextServer {
 
 sub allServers {
 	my ($self, $node) = @_;
-	return $self->{config}->{nodes}->{$node}->{addresses};
+	my $hosts = [ grep { $self->isServerUp($_) } @{$self->{config}->{nodes}->{$node}->{addresses}} ];
+	return $hosts;
+	#return $self->{config}->{nodes}->{$node}->{addresses};
 }
 
 sub markServerUp {
