@@ -565,12 +565,6 @@ behvaior (defaults listed in parens for each):
      base_retry_interval by on each subsequent failure in back-off
      mode
 
-   * retry_slop_secs (5) is used as the upper bound on a whole number
-     of seconds to add to the retry_interval after each failure that
-     triggers an increase in the retry interval.  This parameter helps
-     to slightly stagger retry times between many clients on different
-     servers.
-
    * max_retry_interval (600) is the number of seconds that the retry
      interval will not exceed
 
