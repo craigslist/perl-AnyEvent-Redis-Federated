@@ -201,7 +201,6 @@ sub allServers {
 	my ($self, $node) = @_;
 	my $hosts = [ grep { $self->isServerUp($_) } @{$self->{config}->{nodes}->{$node}->{addresses}} ];
 	return $hosts;
-	#return $self->{config}->{nodes}->{$node}->{addresses};
 }
 
 sub markServerUp {
