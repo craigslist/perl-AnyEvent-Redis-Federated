@@ -35,9 +35,9 @@ use constant MAX_HOST_RETRIES      =>   3; # how many in a row before we pass
 use constant BASE_RETRY_INTERVAL   =>   2; # in seconds
 use constant RETRY_INTERVAL_MULT   =>   2; # multiply this much each retry fail
 use constant MAX_RETRY_INTERVAL    => 600; # no more than this long
-use constant DEFAULT_WEIGHT        => 10;  # for consistent hashing
-use constant COMMAND_TIMEOUT       =>  1;  # used in poll()
-use constant QUERY_ALL             =>  0;  # don't query all addresses by default
+use constant DEFAULT_WEIGHT        =>  10; # for consistent hashing
+use constant COMMAND_TIMEOUT       =>   1; # used in poll()
+use constant QUERY_ALL             =>   0; # don't query all addresses by default
 
 
 my %timeout_override = (
