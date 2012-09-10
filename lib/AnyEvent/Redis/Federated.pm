@@ -299,7 +299,7 @@ sub AUTOLOAD {
 	my $node = $self->keyToNode($hk);
 	my $query_all = $self->{query_all};
 
-	if ($call =~ m/_all$/) {
+	if ($call =~ s/_all$//) {
 		$query_all = 1;
 	}
 
