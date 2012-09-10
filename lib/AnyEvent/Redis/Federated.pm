@@ -34,7 +34,6 @@ our %object_cache;
 use constant MAX_HOST_RETRIES      =>   3; # how many in a row before we pass
 use constant BASE_RETRY_INTERVAL   =>  10; # in seconds
 use constant RETRY_INTERVAL_MULT   =>   2; # multiply this much each retry fail
-use constant RETRY_SLOP_SECS       =>   5; # see perldoc for this one
 use constant MAX_RETRY_INTERVAL    => 600; # no more than this long
 use constant DEFAULT_WEIGHT        => 10;  # for consistent hashing
 use constant COMMAND_TIMEOUT       =>  1;  # used in poll()
@@ -52,7 +51,6 @@ my %defaults = (
 	max_host_retries    => MAX_HOST_RETRIES,
 	base_retry_interval => BASE_RETRY_INTERVAL,
 	retry_interval_mult => RETRY_INTERVAL_MULT,
-	retry_slop_secs     => RETRY_SLOP_SECS,
 	max_retry_interval  => MAX_RETRY_INTERVAL,
 	query_all           => QUERY_ALL,
 );
