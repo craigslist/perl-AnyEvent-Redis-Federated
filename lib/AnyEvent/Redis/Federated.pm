@@ -270,7 +270,7 @@ sub markServerDown {
 			undef $t;
 		}
 	);
-	warn "scheduled health check of $server for in $delay secs";
+	warn "scheduled health check of $server for in $delay secs\n";
 	$self->{server_status}{"$server:retry_pending"} = 1;
 
 	# old retry slower logic...
