@@ -255,8 +255,8 @@ sub markServerDown {
 				port => $port,
 				on_error => sub {
 					warn @_;
-					$self->markServerDown($server);
 					$self->{server_status}{"$server:retry_pending"} = 0;
+					$self->markServerDown($server);
 					#$self->{cv}->end;
 				}
 			);
