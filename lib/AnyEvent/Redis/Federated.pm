@@ -38,6 +38,8 @@ use constant RETRY_SLOP_SECS       =>   5; # see perldoc for this one
 use constant MAX_RETRY_INTERVAL    => 600; # no more than this long
 use constant DEFAULT_WEIGHT        => 10;  # for consistent hashing
 use constant COMMAND_TIMEOUT       =>  1;  # used in poll()
+use constant QUERY_ALL             =>  0;  # don't query all addresses by default
+
 
 my %timeout_override = (
 	'blpop'     => 1, # means the timeout is in the command
@@ -63,6 +65,7 @@ sub new {
 	$self->{retry_interval_mult} ||= RETRY_INTERVAL_MULT;
 	$self->{retry_slop_secs}     ||= RETRY_SLOP_SECS;
 	$self->{max_retry_interval}  ||= MAX_RETRY_INTERVAL;
+	$self->{query_all}           ||= QUERY_ALL;
 
 	# condvar for finishing up stuff (used in poll())
 	$self->{cv} = undef;
@@ -179,6 +182,14 @@ sub nextServer {
 	return $self->{config}->{nodes}->{$node}->{address};
 }
 
+## TODO: return only on-line/up servers?
+
+sub allServers {
+	my ($self, $server, $node) = @_;
+	return [$server] unless $self->{config}->{nodes}->{$node}->{addresses};
+	return $self->{config}->{nodes}->{$node}->{addresses};
+}
+
 sub markServerUp {
 	my ($self, $server) = @_;
 	if ($self->{server_status}{"$server:down"}) {
@@ -280,7 +291,7 @@ sub AUTOLOAD {
 
 	if ($self->{config}->{nodes}->{$node}->{addresses} && $self->isServerDown($server)) {
 		print "server [$server] seems down\n" if $self->{debug};
-		$server = $self->nextServer($server,$node);
+		$server = $self->nextServer($server, $node);
 		print "trying next server in line [$server] for node [$node]\n" if $self->{debug};
 	}
 
@@ -306,7 +317,6 @@ sub AUTOLOAD {
 			port => $port,
 			on_error => sub {
 				warn @_;
-				#$self->{conn}->{$server} = undef;
 				$self->markServerDown($server);
 				$self->{cv}->end;
 			}
@@ -384,6 +394,10 @@ sub poll {
 	$self->{cv} = undef;
 	alarm(0);
 	undef $w;
+}
+
+sub scheduleCall {
+	my () = @_;
 }
 
 =head1 NAME
