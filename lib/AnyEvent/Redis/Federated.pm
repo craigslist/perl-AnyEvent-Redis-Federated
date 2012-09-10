@@ -101,7 +101,7 @@ sub new {
 			# shuffle the existing addresses array
 			@{$self->{config}->{nodes}->{$node}->{addresses}} = shuffle(@{$self->{config}->{nodes}->{$node}->{addresses}});
 			# and set the first to be our targeted server
-			$self->{config}->{nodes}->{$node}->{address} = ${$self->{config}->{nodes}->{$node}->{addresses}}[0];
+			$self->{config}->{nodes}->{$node}->{address} = ${$self->{config}->{nodes}->{$node}->{addresses}}[-1];
 		}
 	}
 
@@ -255,17 +255,18 @@ sub markServerDown {
 				port => $port,
 				on_error => sub {
 					warn @_;
-					$self->{server_status}{"$server:retry_pending"} = 0;
 					$self->markServerDown($server);
+					$self->{server_status}{"$server:retry_pending"} = 0;
 					#$self->{cv}->end;
 				}
 			);
 
 			# woot
 			$r->ping(sub{
-				 $self->{conn}->{$server} = $r;
-				 $self->{server_status}{"$server:retry_pending"} = 0;
-				 $self->markServerUp($server);
+				# TODO: do we care what was passed in?
+				$self->{conn}->{$server} = $r;
+				$self->{server_status}{"$server:retry_pending"} = 0;
+				$self->markServerUp($server);
 			 });
 			undef $t;
 		}
