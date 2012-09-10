@@ -47,6 +47,16 @@ my %timeout_override = (
 	'subscribe' => 0, # means no timeout
 );
 
+my %defaults = (
+	command_timeout     => COMMAND_TIMEOUT,
+	max_host_retries    => MAX_HOST_RETRIES,
+	base_retry_interval => BASE_RETRY_INTERVAL,
+	retry_interval_mult => RETRY_INTERVAL_MULT,
+	retry_slop_secs     => RETRY_SLOP_SECS,
+	max_retry_interval  => MAX_RETRY_INTERVAL,
+	query_all           => QUERY_ALL,
+);
+
 sub new {
 	my $class = shift;
 	my $self = { @_ };
@@ -59,13 +69,10 @@ sub new {
 	}
 
 	# basic init
-	$self->{command_timeout}     ||= COMMAND_TIMEOUT;
-	$self->{max_host_retries}    ||= MAX_HOST_RETRIES;
-	$self->{base_retry_interval} ||= BASE_RETRY_INTERVAL;
-	$self->{retry_interval_mult} ||= RETRY_INTERVAL_MULT;
-	$self->{retry_slop_secs}     ||= RETRY_SLOP_SECS;
-	$self->{max_retry_interval}  ||= MAX_RETRY_INTERVAL;
-	$self->{query_all}           ||= QUERY_ALL;
+	while (my ($k, $v) = each %defaults) {
+		next if exists $self->{$k};
+		$self->{$k} = $v;
+	}
 
 	# condvar for finishing up stuff (used in poll())
 	$self->{cv} = undef;
