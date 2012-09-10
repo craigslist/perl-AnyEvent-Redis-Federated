@@ -64,6 +64,12 @@ my $redis = new AnyEvent::Redis::Federated(
 );
 ok($redis, "new()");
 
+# test for bug where we initialized the first server as the current
+# one instead of using the last one in the list.
+my $next_server = $redis->{'config'}->{'nodes'}->{'foo'}->{'address'};
+my $head_server = $redis->{'config'}->{'nodes'}->{'foo'}->{'addresses'}->[0];
+cmp_ok($next_server, 'ne', $head_server, "next server is not head server");
+
 # check count of allServers for this node
 my $servers = $redis->allServers('foo');
 ok($servers, "allServers('foo')");
