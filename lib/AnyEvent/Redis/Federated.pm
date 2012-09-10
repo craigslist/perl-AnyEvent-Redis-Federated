@@ -32,7 +32,7 @@ our %object_cache;
 # failure and pretend things are just fine.
 
 use constant MAX_HOST_RETRIES      =>   3; # how many in a row before we pass
-use constant BASE_RETRY_INTERVAL   =>  10; # in seconds
+use constant BASE_RETRY_INTERVAL   =>   2; # in seconds
 use constant RETRY_INTERVAL_MULT   =>   2; # multiply this much each retry fail
 use constant MAX_RETRY_INTERVAL    => 600; # no more than this long
 use constant DEFAULT_WEIGHT        => 10;  # for consistent hashing
@@ -195,7 +195,7 @@ sub nextServer {
 	return $self->{config}->{nodes}->{$node}->{address};
 }
 
-## TODO: return only on-line/up servers?
+## return only on-line/up servers?
 
 sub allServers {
 	my ($self, $node) = @_;
@@ -211,6 +211,7 @@ sub markServerUp {
 		delete $self->{server_status}{"$server:retries"};
 		delete $self->{server_status}{"$server:last_try"};
 		delete $self->{server_status}{"$server:down_since"};
+		delete $self->{server_status}{"$server:retry_pending"};
 		delete $self->{server_status}{"$server:retry_interval"};
  		warn "redis server $server back up (down since $down_since)\n";
 	}
@@ -231,8 +232,49 @@ sub markServerDown {
 		$self->{server_status}{"$server:retry_interval"} ||= $self->{base_retry_interval};
 	}
 
-	# repeat
-	else {
+	if ($self->{server_status}{"$server:retry_pending"}) {
+		warn "retry already pending for $server, skipping\n";
+		return 1;
+	}
+
+	# ok, schedule the timer to re-check. TODO: should this be a
+	# recurring timer?  we'd only undef($t) on success of the ping()
+	my $t;
+	my $r;
+	my $delay = $self->{server_status}{"$server:retry_interval"};
+	$t = AnyEvent->timer(
+		after => $delay,
+		cb => sub {
+			# TODO: put all the happy fun logic here
+			warn "timer callback triggered for $server";
+
+			my ($host, $port) = split /:/, $server;
+			print "attempting new connection to $server\n" if $self->{debug};
+			$r = AnyEvent::Redis->new(
+				host => $host,
+				port => $port,
+				on_error => sub {
+					warn @_;
+					$self->markServerDown($server);
+					$self->{server_status}{"$server:retry_pending"} = 0;
+					#$self->{cv}->end;
+				}
+			);
+
+			# woot
+			$r->ping(sub{
+				 $self->{conn}->{$server} = $r;
+				 $self->{server_status}{"$server:retry_pending"} = 0;
+				 $self->markServerUp($server);
+			 });
+			undef $t;
+		}
+	);
+	warn "scheduled health check of $server for in $delay secs";
+	$self->{server_status}{"$server:retry_pending"} = 1;
+
+	# old retry slower logic...
+	if (0) {
 		$self->{server_status}{"$server:retries"}++;
 		$self->{server_status}{"$server:last_try"} = time();
 
@@ -246,9 +288,8 @@ sub markServerDown {
 			# can we back off more?
 			if ($self->{server_status}{"$server:retry_interval"} < $self->{max_retry_interval}) {
 				$self->{server_status}{"$server:retry_interval"} *= $self->{retry_interval_mult};
-				$self->{server_status}{"$server:retry_interval"} += int(rand($self->{retry_slop_secs}));
 				my $int = $self->{server_status}{"$server:retry_interval"};
-				warn "retry_interval for $server now $int\n";
+ 				warn "retry_interval for $server now retrying in $int\n";
 			}
 		}
 	}
@@ -256,25 +297,6 @@ sub markServerDown {
 	## TODO: schedule retry ping call in here...
 
 	return 1;
-}
-
-sub serverNeedsRetry {
-	my ($self, $server) = @_;
-
-	# if we haven't hit the max, yet
-	if ($self->{server_status}{"$server:retries"} < $self->{max_host_retries}) {
-		print "fast retry $server\n" if $self->{debug};
-		return 1;
-	}
-
-	# otherwise, assume we have and check time
-	if ((time() - $self->{server_status}{"$server:last_try"}) >= $self->{server_status}{"$server:retry_interval"}) {
-		#print "slow retry $server ($status->{$server:retry_interval})\n" if $self->{debug};
-		return 1;
-	}
-
-	# default, don't bother
-	return 0;
 }
 
 our $AUTOLOAD;
@@ -312,17 +334,25 @@ sub AUTOLOAD {
 		my $server = $self->nodeToHost($node);
 		print "server [$server] of node [$node] for key [$key] hashkey [$hk]\n" if $self->{debug};
 
-		if ($self->{config}->{nodes}->{$node}->{addresses} && $self->isServerDown($server)) {
-			print "server [$server] seems down\n" if $self->{debug};
-			$server = $self->nextServer($server, $node);
-			print "trying next server in line [$server] for node [$node]\n" if $self->{debug};
+		if ($self->isServerDown($server)) {
+			# try another if we can
+			if ($self->{config}->{nodes}->{$node}->{addresses}) {
+				print "server [$server] seems down\n" if $self->{debug};
+				$server = $self->nextServer($server, $node);
+				print "trying next server in line [$server] for node [$node]\n" if $self->{debug};
+			}
+			# bail otherwise
+			else {
+				print "server $server down.  abandoning call.\n" if $self->{debug};
+				$cb->(undef);
+				return ();
+			}
 		}
 
 		return $self->scheduleCall($server, $call, [@_], $cb);
 	}
 
-	## Need to fire this one at all up servers in the node group and
-	## return all the results (if possible).
+	## Need to fire this one at all up servers in the node group...
 	else {
 		my $servers = $self->allServers($node);
 		for my $server (@$servers) {
@@ -367,8 +397,6 @@ sub poll {
 sub scheduleCall {
 	my ($self, $server, $call, $args, $cb) = @_;
 
-	#@_ = @$args;
-
 	# have a non-idle connection already?
 	my $r;
 	if ($self->{conn}->{$server}) {
@@ -397,13 +425,6 @@ sub scheduleCall {
 		);
 
 		$self->{conn}->{$server} = $r;
-	}
-
-	# if server is down, attempt to reconnect, otherwise back off
-	if ($self->isServerDown($server) and not $self->serverNeedsRetry($server)) {
-		print "server $server down and not retrying...\n" if $self->{debug};
-		$cb->(undef);
-		return ();
 	}
 
 	if (not defined $self->{cv}) {
