@@ -150,6 +150,14 @@ sub commandTimeout {
 	return $self->{command_timeout};
 }
 
+sub queryAll {
+	my ($self, $val) = @_;
+	if (defined $val) {
+		$self->{query_all} = $val;
+	}
+	return $self->{query_all};
+}
+
 sub nodeToHost {
 	my ($self, $node) = @_;
 	return $self->{config}->{nodes}->{$node}->{address};
@@ -307,7 +315,7 @@ sub poll {
 
 	my $w;
 	if ($timeout) {
-		$w = AnyEvent->signal (signal => "ALRM", cb => sub {
+		$w = AnyEvent->signal(signal => "ALRM", cb => sub {
 			warn "AnyEvent::Redis::Federated::poll alarm timeout! ($rid)\n";
 
 			# check the state of requests, marking remaining as cancelled
