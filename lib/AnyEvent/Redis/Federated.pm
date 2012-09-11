@@ -209,7 +209,6 @@ sub markServerUp {
 		my $down_since = localtime($self->{server_status}{"$server:down_since"});
 		delete $self->{server_status}{"$server:down"};
 		delete $self->{server_status}{"$server:retries"};
-		delete $self->{server_status}{"$server:last_try"};
 		delete $self->{server_status}{"$server:down_since"};
 		delete $self->{server_status}{"$server:retry_pending"};
 		delete $self->{server_status}{"$server:retry_interval"};
@@ -219,7 +218,8 @@ sub markServerUp {
 }
 
 sub markServerDown {
-	my ($self, $server) = @_;
+	my ($self, $server, $delay) = @_;
+	$delay ||= $self->{base_retry_interval};
 	warn "redis server $server seems down\n";
 
 	# first time?
@@ -227,7 +227,6 @@ sub markServerDown {
 		warn "server $server down, first time\n";
 		$self->{server_status}{"$server:down"} = 1;
 		$self->{server_status}{"$server:retries"}++;
-		$self->{server_status}{"$server:last_try"} = time();
 		$self->{server_status}{"$server:down_since"} = time();
 		$self->{server_status}{"$server:retry_interval"} ||= $self->{base_retry_interval};
 	}
@@ -237,16 +236,18 @@ sub markServerDown {
 		return 1;
 	}
 
-	# ok, schedule the timer to re-check. TODO: should this be a
-	# recurring timer?  we'd only undef($t) on success of the ping()
+	# ok, schedule the timer to re-check. this should NOT be a
+	# recurring timer, otherwise we end up with a bunch of pending
+	# retries since the "interval" is likely shorter than TCP timeout.
+	# eventually this will error out, in which case we'll try it again
+	# by calling markServerDown() after clearying retry_pending, or
+	# it'll work and we're good to go.
 	my $t;
 	my $r;
-	my $delay = $self->{server_status}{"$server:retry_interval"};
 	$t = AnyEvent->timer(
 		after => $delay,
 		cb => sub {
 			warn "timer callback triggered for $server";
-
 			my ($host, $port) = split /:/, $server;
 			print "attempting reconnect to $server\n" if $self->{debug};
 			$r = AnyEvent::Redis->new(
@@ -254,29 +255,28 @@ sub markServerDown {
 				port => $port,
 				on_error => sub {
 					warn @_;
-					$self->markServerDown($server);
 					$self->{server_status}{"$server:retry_pending"} = 0;
-					#$self->{cv}->end;
+					$self->markServerDown($server); # schedule another try
 				}
 			);
 
 			$r->ping(sub{
-				# TODO: do we care what was passed in?
+				my $val = shift; # should be 'PONG'
+				if ($val ne 'PONG') {
+					warn "retry ping got $val instead of PONG";
+				}
 				$self->{conn}->{$server} = $r;
 				$self->{server_status}{"$server:retry_pending"} = 0;
 				$self->markServerUp($server);
+				undef $t; # we need to keep a ref to the timer here so it runs at all
 			 });
-			undef $t;
 		}
 	);
-	warn "scheduled health check of $server for in $delay secs\n";
+	warn "scheduled health check of $server in $delay secs\n";
 	$self->{server_status}{"$server:retry_pending"} = 1;
 
 	# old retry slower logic...
 	if (0) {
-		$self->{server_status}{"$server:retries"}++;
-		$self->{server_status}{"$server:last_try"} = time();
-
 		if ($self->{server_status}{"$server:retries"} == $self->{max_host_retries}) {
 			warn "redis server $server still down, backing off\n";
 		}
