@@ -186,7 +186,6 @@ my $b;
 $redis->get('a', sub { $b = shift })->poll();
 is($b, 'b', "simple check for 'b'");
 
-# TODO: This fails currently...  Fix in Federated.pm
 $new_servers = $redis->allServers('foo');
 ok($new_servers, "allServers('foo')");
 cmp_ok(scalar(@$new_servers), '==', $instance_count-1, "server count matches instance_count-1 again");
