@@ -245,11 +245,10 @@ sub markServerDown {
 	$t = AnyEvent->timer(
 		after => $delay,
 		cb => sub {
-			# TODO: put all the happy fun logic here
 			warn "timer callback triggered for $server";
 
 			my ($host, $port) = split /:/, $server;
-			print "attempting reconnection to $server\n" if $self->{debug};
+			print "attempting reconnect to $server\n" if $self->{debug};
 			$r = AnyEvent::Redis->new(
 				host => $host,
 				port => $port,
@@ -261,7 +260,6 @@ sub markServerDown {
 				}
 			);
 
-			# woot
 			$r->ping(sub{
 				# TODO: do we care what was passed in?
 				$self->{conn}->{$server} = $r;
