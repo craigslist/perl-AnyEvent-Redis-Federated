@@ -191,7 +191,7 @@ sub nextServer {
 	return $server unless $self->{config}->{nodes}->{$node}->{addresses};
 	$self->{config}->{nodes}->{$node}->{address} = shift(@{$self->{config}->{nodes}->{$node}->{addresses}});
 	push @{$self->{config}->{nodes}->{$node}->{addresses}}, $self->{config}->{nodes}->{$node}->{address};
-	warn "redis server for $node changed from $server to $self->{config}->{nodes}->{$node}->{address} selected\n";
+	warn "redis server for $node changed from $server to $self->{config}->{nodes}->{$node}->{address} selected\n" if $self->{debug};
 	return $self->{config}->{nodes}->{$node}->{address};
 }
 
@@ -212,7 +212,7 @@ sub markServerUp {
 		delete $self->{server_status}{"$server:down_since"};
 		delete $self->{server_status}{"$server:retry_pending"};
 		delete $self->{server_status}{"$server:retry_interval"};
- 		warn "redis server $server back up (down since $down_since)\n";
+ 		warn "redis server $server back up (down since $down_since)\n" if $self->{debug};
 	}
 	return 1;
 }
@@ -220,11 +220,11 @@ sub markServerUp {
 sub markServerDown {
 	my ($self, $server, $delay) = @_;
 	$delay ||= $self->{base_retry_interval};
-	warn "redis server $server seems down\n";
+	warn "redis server $server seems down\n" if $self->{debug};
 
 	# first time?
 	if (not $self->{server_status}{"$server:down"}) {
-		warn "server $server down, first time\n";
+		warn "server $server down, first time\n" if $self->{debug};
 		$self->{server_status}{"$server:down"} = 1;
 		$self->{server_status}{"$server:retries"}++;
 		$self->{server_status}{"$server:down_since"} = time();
@@ -232,7 +232,7 @@ sub markServerDown {
 	}
 
 	if ($self->{server_status}{"$server:retry_pending"}) {
-		warn "retry already pending for $server, skipping\n";
+		warn "retry already pending for $server, skipping\n" if $self->{debug};
 		return 1;
 	}
 
@@ -247,7 +247,7 @@ sub markServerDown {
 	$t = AnyEvent->timer(
 		after => $delay,
 		cb => sub {
-			warn "timer callback triggered for $server";
+			warn "timer callback triggered for $server" if $self->{debug};
 			my ($host, $port) = split /:/, $server;
 			print "attempting reconnect to $server\n" if $self->{debug};
 			$r = AnyEvent::Redis->new(
@@ -263,7 +263,7 @@ sub markServerDown {
 			$r->ping(sub{
 				my $val = shift; # should be 'PONG'
 				if ($val ne 'PONG') {
-					warn "retry ping got $val instead of PONG";
+					warn "retry ping got $val instead of PONG" if $self->{debug};
 				}
 				$self->{conn}->{$server} = $r;
 				$self->{server_status}{"$server:retry_pending"} = 0;
@@ -272,13 +272,13 @@ sub markServerDown {
 			 });
 		}
 	);
-	warn "scheduled health check of $server in $delay secs\n";
+	warn "scheduled health check of $server in $delay secs\n" if $self->{debug};
 	$self->{server_status}{"$server:retry_pending"} = 1;
 
 	# old retry slower logic...
 	if (0) {
 		if ($self->{server_status}{"$server:retries"} == $self->{max_host_retries}) {
-			warn "redis server $server still down, backing off\n";
+			warn "redis server $server still down, backing off\n" if $self->{debug};
 		}
 
 		# are we in back off-mode yet?
@@ -288,7 +288,7 @@ sub markServerDown {
 			if ($self->{server_status}{"$server:retry_interval"} < $self->{max_retry_interval}) {
 				$self->{server_status}{"$server:retry_interval"} *= $self->{retry_interval_mult};
 				my $int = $self->{server_status}{"$server:retry_interval"};
- 				warn "retry_interval for $server now retrying in $int\n";
+ 				warn "retry_interval for $server now retrying in $int\n" if $self->{debug}
 			}
 		}
 	}
@@ -371,7 +371,7 @@ sub poll {
 	my $w;
 	if ($timeout) {
 		$w = AnyEvent->signal(signal => "ALRM", cb => sub {
-			warn "AnyEvent::Redis::Federated::poll alarm timeout! ($rid)\n";
+			warn "AnyEvent::Redis::Federated::poll alarm timeout! ($rid)\n" if $self->{debug};
 
 			# check the state of requests, marking remaining as cancelled
 			while (my ($rid, $state) = each %{$self->{request_state}}) {
@@ -475,28 +475,28 @@ AnyEvent::Redis::Federated - Full-featured Async Perl Redis client
   # send a request with a callback
   $redis->get("foo1", sub {
     my $val = shift;
-    print "cb got: $val\n";
+    print "cb got: $val\n"; # should print "cb got: 1"
   });
   $redis->poll;
 
 =head1 DESCRIPTION
 
 This is a wrapper around AnyEvent::Redis which adds timeouts,
-connection retries, multi-machine cluster configuration
-(including consistent hashing), and other magic bits.
+connection retries, multi-machine cluster configuration (including
+consistent hashing), node groups, and other magic bits.
 
 =head2 HASHING AND SCALING
 
 Keys are run through a consistent hashing algorithm to map them to
 "nodes" which ultimately map to instances defined by back-end
-host:port entries.  For example, the C<redis_1> node may map to
-the host and port C<redis1.example.com:63791>, but that'll all be
+host:port entries.  For example, the C<redis_1> node may map to the
+host and port C<redis1.example.com:63791>, but that'll all be
 transparent to the user.
 
-However, there are features in Redis that are handy if you
-know a given set of keys lives on a single insance (a wildcard fetch
-like C<KEYS gmail*>, for example).  To facilitate that, you can specify
-a "key group" that will be hashed insead of hashing the key.
+However, there are features in Redis that are handy if you know a
+given set of keys lives on a single insance (a wildcard fetch like
+C<KEYS gmail*>, for example).  To facilitate that, you can specify a
+"key group" that will be hashed insead of hashing the key.
 
 For example:
 
