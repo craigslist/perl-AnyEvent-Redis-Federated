@@ -53,6 +53,7 @@ my %defaults = (
 	retry_interval_mult => RETRY_INTERVAL_MULT,
 	max_retry_interval  => MAX_RETRY_INTERVAL,
 	query_all           => QUERY_ALL,
+	quiet               => $ENV{QUIET},
 );
 
 sub new {
@@ -254,7 +255,7 @@ sub markServerDown {
 				host => $host,
 				port => $port,
 				on_error => sub {
-					warn @_;
+					warn @_ unless $self->{quiet};
 					$self->{server_status}{"$server:retry_pending"} = 0;
 					$self->markServerDown($server); # schedule another try
 				}
