@@ -11,6 +11,7 @@ WriteMakefile(
 #        'Test::RedisServer'   => '0.09',
         'AnyEvent::Redis'     => 0,
 		'Set::ConsistentHash' => 0,
+		'Memory::Usage'       => 0,
     },
     ($] >= 5.005 ?     ## Add these new keywords supported since 5.005
       (ABSTRACT_FROM  => 'lib/AnyEvent/Redis/Federated.pm', # retrieve abstract from module
