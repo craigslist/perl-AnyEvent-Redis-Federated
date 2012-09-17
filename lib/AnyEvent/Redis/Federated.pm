@@ -418,7 +418,7 @@ sub scheduleCall {
 			host => $host,
 			port => $port,
 			on_error => sub {
-				warn @_;
+				warn @_ unless $self->{quiet};
 				$self->markServerDown($server);
 				$self->{cv}->end;
 			}

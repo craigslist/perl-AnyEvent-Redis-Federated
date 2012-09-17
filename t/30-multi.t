@@ -61,6 +61,7 @@ sleep 2;
 my $redis = new AnyEvent::Redis::Federated(
 	config      => \%config,
 	clean_state => 1,
+	quiet       => 1,
 );
 ok($redis, "new()");
 
