@@ -686,12 +686,6 @@ looks like:
       redis_3 => { address => 'db2:63790' },
       redis_4 => { address => 'db2:63791' },
     },
-    'master_of' => {
-      'db1:63792' => 'db2:63790',
-      'db1:63793' => 'db2:63791',
-      'db2:63792' => 'db1:63790',
-      'db2:63793' => 'db1:63791',
-    },
   };
 
 The "nodes" and "master_of" hashes are described below.
@@ -711,14 +705,6 @@ There is unlikely to be a need to remove a node.
 
 Adding nodes to a cluster is currently not well-supported, but is an
 area of active development. 
-
-=head3 MASTER_OF
-
-The C<master_of> configuration describes the replication structure of the
-cluster. Replication provides us with a hot standby in case a machine
-fails. This structure tells a slave node which node is its master. If
-there is no mapping for a given host, it's a master. The format is
-'slave' => 'master'.
 
 =head2 EVENT LOOP
 
