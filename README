@@ -1,5 +1,5 @@
-AnyEvent-Redis-Federated version 0.01
-=====================================
+AnyEvent-Redis-Federated version
+================================
 
 AnyEvent based async Redis client which implements  timeouts,
 connection retries, multi-machine pool configuration (including
