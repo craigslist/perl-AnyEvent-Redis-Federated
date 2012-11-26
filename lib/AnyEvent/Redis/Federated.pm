@@ -693,18 +693,18 @@ The "nodes" and "master_of" hashes are described below.
 =head3 NODES
 
 The "nodes" configuation maps an arbitrary node name to a host:port
-pair.
+pair.  (The hostname can be replaced with an IP address.)
 
 Node names (redis_N in the example above) are VERY important since
 they are the keys used to build the consistent hashing ring. It's
 generally the wrong idea to change a node name. Since node names are
-mapped to a host:port pair, we can move a node from one host to another
-without rehashing a bunch of keys.
+mapped to a host:port pair, we can move a node from one host to
+another without rehashing a bunch of keys.
 
 There is unlikely to be a need to remove a node.
 
 Adding nodes to a cluster is currently not well-supported, but is an
-area of active development. 
+area of active development.
 
 =head2 EVENT LOOP
 
@@ -741,7 +741,9 @@ that to AnyEvent.
 
 =head2 BUGS
 
-This code is lightly tested and considered to be of beta quality.
+Please report bugs as issues on github:
+
+  https://github.com/craigslist/perl-AnyEvent-Redis-Federated/issues
 
 =head1 AUTHOR
 
