@@ -13,7 +13,7 @@ use Digest::MD5 qw(md5);   # for hashing keys
 use Scalar::Util qw(weaken);
 use List::Util qw(shuffle);
 
-our $VERSION = "0.07";
+our $VERSION = "0.08";
 
 # keep a global object cache that will contain weak references to
 # objects keyed on their tag.  this allows for sharing of objects
@@ -268,27 +268,6 @@ sub markServerDown {
 	);
 	warn "scheduled health check of $server in $delay secs\n" if $self->{debug};
 	$self->{server_status}{"$server:retry_pending"} = 1;
-
-	# old retry slower logic...
-	if (0) {
-		if ($self->{server_status}{"$server:retries"} == $self->{max_host_retries}) {
-			warn "redis server $server still down, backing off\n" if $self->{debug};
-		}
-
-		# are we in back off-mode yet?
-		elsif ($self->{server_status}{"$server:retries"} > $self->{max_host_retries}) {
-
-			# can we back off more?
-			if ($self->{server_status}{"$server:retry_interval"} < $self->{max_retry_interval}) {
-				$self->{server_status}{"$server:retry_interval"} *= $self->{retry_interval_mult};
-				my $int = $self->{server_status}{"$server:retry_interval"};
- 				warn "retry_interval for $server now retrying in $int\n" if $self->{debug}
-			}
-		}
-	}
-
-	## TODO: schedule retry ping call in here...
-
 	return 1;
 }
 
