@@ -607,28 +607,7 @@ about the down server.
 
 =head2 TIMEOUTS
 
-This module provides support for connection timeouts and command
-timeouts.  A connection timeout applies to the time required to
-establish a connection to a Redis server.  Generally speaking, that's
-only a problem if there are network problems preventing you from
-getting a positive or negative response from the server.  In normal
-circumstances, you'll either connect or be refused almost immediately.
-
-By default C<connect_timeout> is 1 second.  You can set it to
-whatever you like when creating a new AnyEvent::Redis::Federated object.
-Using 0 will have the effect of falling back to the OS default timeout.
-You may use floating-point (non-integer values) such as 0.5 for the
-connection timeout.  You can get or set the current connect_timeout by
-calling the C<connect_timeout()> method on an AnyEvent::Redis::Federated
-object.
-
-When a connect timeout is hit, the logic in CONNECTION RETRIES (above)
-kicks in.
-
-IMPORTANT: In high-volume contexts, such as running under
-Apache/mod_perl handling hundreds of requests per server per second,
-USE CARE to choose a wise value!  It's not unreasonable to use 100ms
-(0.1 seconds).
+This module provides support for command timeouts.
 
 The command timeout controls how long we're willing to wait for a
 response to a given request made to a Redis server.  Redis usually
