@@ -2,5 +2,4 @@ Changes
 Makefile.PL
 MANIFEST
 README
-t/AnyEvent-Redis-Federated.t
 lib/AnyEvent/Redis/Federated.pm
