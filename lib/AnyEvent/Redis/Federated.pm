@@ -39,13 +39,6 @@ use constant DEFAULT_WEIGHT        =>  10; # for consistent hashing
 use constant COMMAND_TIMEOUT       =>   1; # used in poll()
 use constant QUERY_ALL             =>   0; # don't query all addresses by default
 
-
-my %timeout_override = (
-	'blpop'     => 1, # means the timeout is in the command
-	'brpop'     => 1,
-	'subscribe' => 0, # means no timeout
-);
-
 my %defaults = (
 	command_timeout     => COMMAND_TIMEOUT,
 	max_host_retries    => MAX_HOST_RETRIES,
